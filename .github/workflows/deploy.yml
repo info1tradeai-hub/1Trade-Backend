@@ -1,0 +1,34 @@
+name: Deploy Backend to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 1Trade Backend Deploy on VPS Successfully
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            echo '🔄 Pulling latest code...' &&
+            cd /var/www/projects/1trade/1trade-backend/1Trade_backend &&
+            git pull &&
+            echo '📦 Installing backend dependencies...' &&
+            npm install --production &&
+            echo '🚀 Restarting backend server...' &&
+            pm2 restart 1trade-backend &&
+            echo '✨ Deployment Completed Successfully 1Trade Backend'
+          "
