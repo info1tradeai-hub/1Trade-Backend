@@ -2472,9 +2472,9 @@ export const transferAmountToAnotherUser = async (req, res) => {
     sender.otp = null;
     sender.otpExpire = null;
 
-    if (!meetsUnlimitedCriteria) {
-      sender.transferCount = (sender.transferCount || 0) + 1;
-    }
+    // if (!meetsUnlimitedCriteria) {
+    //   sender.transferCount = (sender.transferCount || 0) + 1;
+    // }
 
     sender.isJoiningBonusGetFirstTime = true;
     sender.isjoiningBonusGiven = true;
