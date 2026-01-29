@@ -2311,46 +2311,46 @@ export const transferAmountToAnotherUser = async (req, res) => {
       });
     }
 
-    const { teamA, teamB, teamC } = await calculateTeams(sender._id);
-    const validDirectMembers = teamA.filter(
-      (m) => m.isVerified && m.mainWallet >= 30,
-    ).length;
-    const validBCMembers = [...teamB, ...teamC].filter(
-      (m) => m.isVerified && m.mainWallet >= 30,
-    ).length;
+    // const { teamA, teamB, teamC } = await calculateTeams(sender._id);
+    // const validDirectMembers = teamA.filter(
+    //   (m) => m.isVerified && m.mainWallet >= 30,
+    // ).length;
+    // const validBCMembers = [...teamB, ...teamC].filter(
+    //   (m) => m.isVerified && m.mainWallet >= 30,
+    // ).length;
 
-    if (sender.totalTradeCount < 5 || validDirectMembers < 2) {
-      return res.status(400).json({
-        message:
-          "You need at least 5 trades and 2 valid direct members (active with fund) to start transfers.",
-        success: false,
-      });
-    }
+    // if (sender.totalTradeCount < 5 || validDirectMembers < 2) {
+    //   return res.status(400).json({
+    //     message:
+    //       "You need at least 5 trades and 2 valid direct members (active with fund) to start transfers.",
+    //     success: false,
+    //   });
+    // }
 
-    const meetsUnlimitedCriteria =
-      sender.aiCredits >= 100 &&
-      validDirectMembers >= 2 &&
-      validBCMembers >= 5 &&
-      sender.mainWallet >= 30;
+    // const meetsUnlimitedCriteria =
+    //   sender.aiCredits >= 100 &&
+    //   validDirectMembers >= 2 &&
+    //   validBCMembers >= 5 &&
+    //   sender.mainWallet >= 30;
 
-    if (!meetsUnlimitedCriteria) {
-      if ((sender.transferCount || 0) >= 2) {
-        return res.status(400).json({
-          message:
-            "You have reached your 2 transfer limit. To unlock unlimited transfers, meet 2nd level requirements.",
-          success: false,
-        });
-      }
+    // if (!meetsUnlimitedCriteria) {
+    //   if ((sender.transferCount || 0) >= 2) {
+    //     return res.status(400).json({
+    //       message:
+    //         "You have reached your 2 transfer limit. To unlock unlimited transfers, meet 2nd level requirements.",
+    //       success: false,
+    //     });
+    //   }
 
-      // Yaha basic mode me amount limit check
-      if (Number(amount) > 100) {
-        return res.status(400).json({
-          message:
-            "maximum $100 transfer is allowed per transaction. To unlock unlimited transfers, meet 2nd level requirements.",
-          success: false,
-        });
-      }
-    }
+    //   // Yaha basic mode me amount limit check
+    //   if (Number(amount) > 100) {
+    //     return res.status(400).json({
+    //       message:
+    //         "maximum $100 transfer is allowed per transaction. To unlock unlimited transfers, meet 2nd level requirements.",
+    //       success: false,
+    //     });
+    //   }
+    // }
 
     const isValidOtp = await verify2FA(sender.email, authOtp);
     if (!isValidOtp) {

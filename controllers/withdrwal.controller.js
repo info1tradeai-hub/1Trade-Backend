@@ -123,7 +123,6 @@ export const processWithdrawal = async (req, res) => {
         message: "You need at least 5 trades to make a withdrawal.",
       });
     }
-
     const feeConfig = await WithdrawalFee.findOne().sort({ createdAt: -1 });
     if (!feeConfig)
       return res
@@ -143,7 +142,6 @@ export const processWithdrawal = async (req, res) => {
         message: "Invalid or expired Google Authenticator code.",
       });
     }
-
     const withdrawalRule = await WithdrawalLimit.findOne({
       level: Number(user.level),
     });
@@ -153,7 +151,6 @@ export const processWithdrawal = async (req, res) => {
         message: "Withdrawal rules not configured for your level.",
       });
     }
-
     if (numericAmount < withdrawalRule.min) {
       return res.status(400).json({
         success: false,
@@ -164,89 +161,86 @@ export const processWithdrawal = async (req, res) => {
     // ---------------------------
     // EXTRA: CHECK IF USER MEETS LEVEL 2 REQUIREMENTS PARTIALLY
     // ---------------------------
-    let meetsLevel2Partial = false;
-    if (user.level === 1) {
-      const level2Req = await LevelRequirementSchema.findOne({ level: 2 });
+    // let meetsLevel2Partial = false;
+    // if (user.level === 1) {
+    //   const level2Req = await LevelRequirementSchema.findOne({ level: 2 });
 
-      if (level2Req) {
-        const { teamA, teamB, teamC } = await calculateTeams(user._id);
-        // console.log("Teams:", {
-        //   teamA: teamA.length,
-        //   teamB: teamB.length,
-        //   teamC: teamC.length,
-        // });
-
-        const validA = teamA.filter(
-          (m) => m.isVerified && m.mainWallet >= 30,
-        ).length;
-        const validBC = [...teamB, ...teamC].filter(
-          (m) => m.isVerified && m.mainWallet >= 30,
-        ).length;
-
-        console.log("Valid A:", validA, "Valid BC:", validBC);
-
-        if (
-          (user.aiCredits || 0) >= level2Req.aiCredits &&
-          validA >= level2Req.activeA &&
-          validBC >= level2Req.activeBC
-        ) {
-          meetsLevel2Partial = true;
-        }
-      }
-    }
+    //   if (level2Req) {
+    //     const { teamA, teamB, teamC } = await calculateTeams(user._id);
+    //     // console.log("Teams:", {
+    //     //   teamA: teamA.length,
+    //     //   teamB: teamB.length,
+    //     //   teamC: teamC.length,
+    //     // });
+    //     const validA = teamA.filter(
+    //       (m) => m.isVerified && m.mainWallet >= 30,
+    //     ).length;
+    //     const validBC = [...teamB, ...teamC].filter(
+    //       (m) => m.isVerified && m.mainWallet >= 30,
+    //     ).length;
+    //     console.log("Valid A:", validA, "Valid BC:", validBC);
+    //     if (
+    //       (user.aiCredits || 0) >= level2Req.aiCredits &&
+    //       validA >= level2Req.activeA &&
+    //       validBC >= level2Req.activeBC
+    //     ) {
+    //       meetsLevel2Partial = true;
+    //     }
+    //   }
+    // }
 
     // ---------------------------
     // LEVEL < 2 PRINCIPAL RULE
     // ---------------------------
-    if (user.level < 2 && !meetsLevel2Partial) {
-      if (walletType === "mainWallet") {
-        if (user.mainWalletPrinciple == 0) {
-          return res.status(400).json({
-            success: false,
-            message: `you didn't have any deposit amount. you can transfer your profit to get a transfer feature valid 2 Direct members or you need to meet 2nd level requirements to get unlimited withdrawals and transfers.`,
-          });
-        }
-        if (numericAmount > user.mainWalletPrinciple) {
-          return res.status(400).json({
-            success: false,
-            message: `You can withdraw maximum your remaining principal from mainWallet: $${user.mainWalletPrinciple}. Meet 2nd level requirement for further withdrawals.`,
-          });
-        }
-        user.mainWalletPrinciple -= numericAmount;
-        if (user.mainWalletPrinciple < 0) user.mainWalletPrinciple = 0;
-      }
+    // if (user.level < 2 && !meetsLevel2Partial) {
+    //   if (walletType === "mainWallet") {
+    //     if (user.mainWalletPrinciple == 0) {
+    //       return res.status(400).json({
+    //         success: false,
+    //         message: `you didn't have any deposit amount. you can transfer your profit to get a transfer feature valid 2 Direct members or you need to meet 2nd level requirements to get unlimited withdrawals and transfers.`,
+    //       });
+    //     }
+    //     if (numericAmount > user.mainWalletPrinciple) {
+    //       return res.status(400).json({
+    //         success: false,
+    //         message: `You can withdraw maximum your remaining principal from mainWallet: $${user.mainWalletPrinciple}. Meet 2nd level requirement for further withdrawals.`,
+    //       });
+    //     }
+    //     user.mainWalletPrinciple -= numericAmount;
+    //     if (user.mainWalletPrinciple < 0) user.mainWalletPrinciple = 0;
+    //   }
 
-      if (walletType === "additionalWallet") {
-        if (
-          !user.additionalWalletPrinciple ||
-          user.additionalWalletPrinciple <= 0
-        ) {
-          return res.status(400).json({
-            success: false,
-            message:
-              "You are 100% withdrawal of your principle amount. Refer 2 valid members or upgrade level.",
-          });
-        }
-        if (numericAmount > user.additionalWalletPrinciple) {
-          return res.status(400).json({
-            success: false,
-            message: `You can withdraw maximum your remaining principal from Additional Wallet: $${user.additionalWalletPrinciple}. Meet 2nd level requirement for further withdrawals.`,
-          });
-        }
-        user.additionalWalletPrinciple -= numericAmount;
-        if (user.additionalWalletPrinciple < 0)
-          user.additionalWalletPrinciple = 0;
-      }
-    } else {
-      // ---------------------------
-      // LEVEL >= 2 OR meetsLevel2Partial RULES
-      // ---------------------------
-      if (numericAmount > withdrawalRule.singleWithdrawalLimit) {
-        return res.status(400).json({
-          success: false,
-          message: `Maximum single withdrawal for your level is $${withdrawalRule.singleWithdrawalLimit}`,
-        });
-      }
+    //   if (walletType === "additionalWallet") {
+    //     if (
+    //       !user.additionalWalletPrinciple ||
+    //       user.additionalWalletPrinciple <= 0
+    //     ) {
+    //       return res.status(400).json({
+    //         success: false,
+    //         message:
+    //           "You are 100% withdrawal of your principle amount. Refer 2 valid members or upgrade level.",
+    //       });
+    //     }
+    //     if (numericAmount > user.additionalWalletPrinciple) {
+    //       return res.status(400).json({
+    //         success: false,
+    //         message: `You can withdraw maximum your remaining principal from Additional Wallet: $${user.additionalWalletPrinciple}. Meet 2nd level requirement for further withdrawals.`,
+    //       });
+    //     }
+    //     user.additionalWalletPrinciple -= numericAmount;
+    //     if (user.additionalWalletPrinciple < 0)
+    //       user.additionalWalletPrinciple = 0;
+    //   }
+    // } else {
+    // ---------------------------
+    // LEVEL >= 2 OR meetsLevel2Partial RULES
+    // ---------------------------
+    if (numericAmount > withdrawalRule.singleWithdrawalLimit) {
+      return res.status(400).json({
+        success: false,
+        message: `Maximum single withdrawal for your level is $${withdrawalRule.singleWithdrawalLimit}`,
+      });
+      // }
 
       const now = new Date();
       const firstDayOfMonth = moment()

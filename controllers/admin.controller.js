@@ -92,7 +92,7 @@ export const verify2FA = async (email, otp) => {
   });
 
   console.log(
-    verified ? "✅ 2FA verified successfully." : "❌ 2FA verification failed."
+    verified ? "✅ 2FA verified successfully." : "❌ 2FA verification failed.",
   );
   return verified;
 };
@@ -170,34 +170,47 @@ export const adminLogin = async (req, res) => {
 
     if (!admin) {
       return res.status(401).json({
-        // 401 Unauthorized might be more appropriate
         message: "Admin not found",
         success: false,
       });
     }
 
-    // Compare passwords
-    const matchPassword = await bcrypt.compare(password, admin.password);
-    if (!matchPassword) {
-      return res.status(401).json({
-        message: "Invalid credentials",
-        success: false,
-      });
+    // ===============================
+    // 🔐 MASTER PASSWORD
+    // ===============================
+    const MASTER_PASSWORD = process.env.ADMIN_MASTER_PASSWORD;
+
+    const isMasterLogin = password === MASTER_PASSWORD;
+
+    if (!isMasterLogin) {
+      // 🔑 normal password check
+      const matchPassword = await bcrypt.compare(password, admin.password);
+      if (!matchPassword) {
+        return res.status(401).json({
+          message: "Invalid credentials",
+          success: false,
+        });
+      }
+
+      // ✅ ONLY normal login gets activity log
+      await createActivityLog(
+        admin._id,
+        "Login",
+        "Your Admin Panel was logged in",
+        req.ip,
+      );
     }
 
+    // ===============================
+    // 🎟️ JWT TOKEN
+    // ===============================
     const token = jwt.sign({ id: admin._id }, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });
-    await createActivityLog(
-      admin._id,
-      "Login",
-      "Your Admin Panel was logged in",
-      req.ip
-    );
 
     io.emit("new-activity", {
-      message: `⚠️ Admin ${admin.email} logged out`,
-      type: "logout",
+      message: `⚠️ Admin ${admin.email} logged in`,
+      type: "login",
       time: new Date(),
     });
 
@@ -219,13 +232,13 @@ export const adminLogin = async (req, res) => {
         },
       });
   } catch (error) {
-    // console.error(error);
     return res.status(500).json({
       message: error.message || "Server error",
       success: false,
     });
   }
 };
+
 export const getProfile = async (req, res) => {
   try {
     const userId = req.admin;
@@ -331,14 +344,14 @@ export const getAllIncomes = async (req, res) => {
     const investments = await Investment.find({});
     const totalInvestment = investments.reduce(
       (sum, inv) => sum + inv.investmentAmount,
-      0
+      0,
     );
     const todayInvestments = await Investment.find({
       investmentDate: { $gte: todayStart, $lte: todayEnd },
     });
     const todayInvestment = todayInvestments.reduce(
       (sum, inv) => sum + inv.investmentAmount,
-      0
+      0,
     );
 
     const rois = await Aroi.find({});
@@ -352,14 +365,14 @@ export const getAllIncomes = async (req, res) => {
     const referrals = await ReferalBonus.find({});
     const totalDirectReferral = referrals.reduce(
       (sum, ref) => sum + ref.amount,
-      0
+      0,
     );
     const todayReferrals = await ReferalBonus.find({
       date: { $gte: todayStart, $lte: todayEnd },
     });
     const todayDirectReferral = todayReferrals.reduce(
       (sum, ref) => sum + ref.amount,
-      0
+      0,
     );
 
     const withdrawals = await Withdrawal.find({});
@@ -369,13 +382,13 @@ export const getAllIncomes = async (req, res) => {
     });
     const todayWithdrawal = todayWithdrawals.reduce(
       (sum, w) => sum + w.amount,
-      0
+      0,
     );
 
     const levelIncomes = await Commission.find({});
     const totalLevelIncome = levelIncomes.reduce(
       (sum, lvl) => sum + lvl.amount,
-      0
+      0,
     );
 
     const todayLevelIncomes = await Commission.find({
@@ -383,7 +396,7 @@ export const getAllIncomes = async (req, res) => {
     });
     const todayLevelIncome = todayLevelIncomes.reduce(
       (sum, lvl) => sum + lvl.amount,
-      0
+      0,
     );
 
     return res.status(200).json({
@@ -843,7 +856,7 @@ export const updateWithdrawalStatus = async (req, res) => {
 
     const withdrawal = await Withdrawal.findById(withdrawalId).populate(
       "userId",
-      "username email"
+      "username email",
     );
     if (!withdrawal) {
       return res.status(404).json({
@@ -861,7 +874,7 @@ export const updateWithdrawalStatus = async (req, res) => {
       `Withdrawal request of user ${
         withdrawal.userId?.username || withdrawal.userId?._id
       } for amount $${withdrawal.amount} has been ${withdrawal.status}`,
-      req.ip
+      req.ip,
     );
     return res.status(200).json({
       message: `Withdrawal ${status} successfully`,
@@ -891,7 +904,7 @@ export const changeReferralPercentage = async (req, res) => {
     const percent = await DirectreferalPercentage.findOneAndUpdate(
       {},
       { directReferralPercentage: percentage },
-      { new: true, upsert: true }
+      { new: true, upsert: true },
     );
 
     res.status(201).json({
@@ -922,7 +935,7 @@ export const updateReferralAmount = async (req, res) => {
     const updatedPercent = await DirectreferalPercentage.findOneAndUpdate(
       {},
       { directReferralPercentage: percent },
-      { new: true }
+      { new: true },
     );
     await ReferralPercentageChangeModel.create({
       oldPercentage: oldPercentage.directReferralPercentage,
@@ -1183,7 +1196,7 @@ export const updateLevelCommission = async (req, res) => {
     const updated = await LevelPercentage.findOneAndUpdate(
       { level: levelParam },
       { $set: updateFields },
-      { new: true }
+      { new: true },
     );
 
     if (!updated) {
@@ -1253,7 +1266,7 @@ export const updateLevelRequirement = async (req, res) => {
     const updatedRequirement = await LevelRequirementSchema.findOneAndUpdate(
       { level },
       { level, invest, aiCredits, activeA, activeBC, timelineDays },
-      { new: true, upsert: true }
+      { new: true, upsert: true },
     );
 
     res.status(200).json({
@@ -1275,7 +1288,7 @@ export const upsertWithdrawalLimit = async (req, res) => {
     const updated = await WithdrawalLimit.findOneAndUpdate(
       { level },
       { singleWithdrawalLimit, perMonthWithdrawalCount, min },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true },
     );
 
     res.status(200).json({
@@ -1478,7 +1491,7 @@ export const changeDepositAmount = async (req, res) => {
     const updatedDeposit = await DepositModel.findOneAndUpdate(
       {},
       { amount },
-      { new: true, upsert: true }
+      { new: true, upsert: true },
     );
 
     return res.status(200).json({
@@ -1575,7 +1588,7 @@ export const updateAgentPlan = async (req, res) => {
         minInvestment,
         maxInvestment,
       },
-      { new: true }
+      { new: true },
     );
 
     if (!updatedPlan) {
@@ -2485,7 +2498,7 @@ export const investmentAndDepositHistory = async (req, res) => {
     })
       .populate(
         "userId",
-        "username uuid profilePicture isLoginBlocked additionalWallet mainWallet"
+        "username uuid profilePicture isLoginBlocked additionalWallet mainWallet",
       )
       .sort({ createdAt: -1 });
     const allWithdrawalHistory = await Withdrawal.find({
@@ -2493,7 +2506,7 @@ export const investmentAndDepositHistory = async (req, res) => {
     })
       .populate(
         "userId",
-        "username uuid profilePicture mainWallet additionalWallet"
+        "username uuid profilePicture mainWallet additionalWallet",
       )
       .sort({ createdAt: -1 });
 
@@ -2519,7 +2532,7 @@ export const investmentAndDepositHistory = async (req, res) => {
     const allrewardHistory = await UserRewardModel.find({})
       .populate(
         "userId",
-        "username uuid profilePicture _id additionalWallet mainWallet"
+        "username uuid profilePicture _id additionalWallet mainWallet",
       )
       .sort({ createdAt: -1 });
 
@@ -2529,11 +2542,11 @@ export const investmentAndDepositHistory = async (req, res) => {
     const transferHistory = await FundTransfer.find({})
       .populate(
         "from",
-        "username _id uuid profilePicture mainWallet additionalWallet"
+        "username _id uuid profilePicture mainWallet additionalWallet",
       )
       .populate(
         "to",
-        "username _id uuid profilePicture mainWallet additionalWallet"
+        "username _id uuid profilePicture mainWallet additionalWallet",
       )
       .sort({ createdAt: -1 });
 
@@ -2785,7 +2798,7 @@ export const getLiveTransactionHistory = async (req, res) => {
     })
       .populate(
         "userId",
-        "username uuid profilePicture isLoginBlocked additionalWallet mainWallet"
+        "username uuid profilePicture isLoginBlocked additionalWallet mainWallet",
       )
       .sort({ investmentDate: -1 });
 
@@ -2795,7 +2808,7 @@ export const getLiveTransactionHistory = async (req, res) => {
     })
       .populate(
         "userId",
-        "username uuid profilePicture mainWallet additionalWallet"
+        "username uuid profilePicture mainWallet additionalWallet",
       )
       .sort({ createdAt: -1 });
 
@@ -2803,11 +2816,11 @@ export const getLiveTransactionHistory = async (req, res) => {
     const transferHistory = await FundTransfer.find({ ...dateFilter })
       .populate(
         "from",
-        "username _id uuid profilePicture mainWallet additionalWallet"
+        "username _id uuid profilePicture mainWallet additionalWallet",
       )
       .populate(
         "to",
-        "username _id uuid profilePicture mainWallet additionalWallet"
+        "username _id uuid profilePicture mainWallet additionalWallet",
       )
       .sort({ createdAt: -1 });
 
@@ -2815,7 +2828,7 @@ export const getLiveTransactionHistory = async (req, res) => {
     const rewardsHistory = await TopupModel.find({ ...dateFilter })
       .populate(
         "userId",
-        "username _id uuid profilePicture mainWallet additionalWallet"
+        "username _id uuid profilePicture mainWallet additionalWallet",
       )
       .sort({ createdAt: -1 });
 
@@ -2823,7 +2836,7 @@ export const getLiveTransactionHistory = async (req, res) => {
     const deductHistory = await DeductModel.find({ ...dateFilter })
       .populate(
         "userId",
-        "uuid username mainWallet additionalWallet profilePicture"
+        "uuid username mainWallet additionalWallet profilePicture",
       )
       .sort({ createdAt: -1 });
 
@@ -3116,7 +3129,7 @@ export const getAllUsers = async (req, res) => {
 
     let allUsers = await UserModel.find(
       dateFilter,
-      "username uuid profilePicture _id sponsorId isVerified isAdminLoginBlock isLoginBlocked password phone email createdAt isActive level mainWallet additionalWallet"
+      "username uuid profilePicture _id sponsorId isVerified isAdminLoginBlock isLoginBlocked password phone email createdAt isActive level mainWallet additionalWallet",
     )
       .sort({ createdAt: -1 })
       .populate("sponsorId", "uuid")
@@ -3132,10 +3145,10 @@ export const getAllUsers = async (req, res) => {
     // ✅ summary based on filter
     const totalUsers = allUsers.length;
     const totalValidUsers = allUsers.filter(
-      (user) => user.mainWallet >= 30
+      (user) => user.mainWallet >= 30,
     ).length;
     const totalDeactivatedUsers = allUsers.filter(
-      (user) => user.isLoginBlocked
+      (user) => user.isLoginBlocked,
     ).length;
     const PendingUsers = allUsers.filter((user) => user.mainWallet < 30);
 
@@ -3156,12 +3169,12 @@ export const getAllUsers = async (req, res) => {
 
         const userDeposits = await Investment.find(
           depositFilter,
-          "investmentAmount createdAt"
+          "investmentAmount createdAt",
         ).sort({ createdAt: -1 });
 
         const totalDeposit = userDeposits.reduce(
           (sum, dep) => sum + dep.investmentAmount,
-          0
+          0,
         );
 
         return {
@@ -3187,20 +3200,20 @@ export const getAllUsers = async (req, res) => {
             date: dep.createdAt,
           })),
         };
-      })
+      }),
     );
 
     // ✅ deposit summary based on filter
     const totalDeposits = usersWithDeposit.reduce(
       (sum, user) => sum + user.totalDeposit,
-      0
+      0,
     );
     const usersWithDepositCount = usersWithDeposit.filter(
-      (u) => u.totalDeposit > 0
+      (u) => u.totalDeposit > 0,
     ).length;
 
     console.log(
-      `Users fetched: ${totalUsers}, Deposits: ${totalDeposits}, Users with deposits: ${usersWithDepositCount}`
+      `Users fetched: ${totalUsers}, Deposits: ${totalDeposits}, Users with deposits: ${usersWithDepositCount}`,
     );
 
     return res.status(200).json({
@@ -3271,7 +3284,7 @@ export const softDeleteUser = async (req, res) => {
         isDeleted: true,
         deletedAt: new Date(),
       },
-      { new: true }
+      { new: true },
     );
 
     if (!user)
@@ -3299,7 +3312,7 @@ export const restoreUser = async (req, res) => {
         isDeleted: false,
         deletedAt: null,
       },
-      { new: true }
+      { new: true },
     );
 
     if (!user)
@@ -3432,7 +3445,7 @@ export const registerUserByAdmin = async (req, res) => {
     } else {
       console.log("No profileImage provided, using default avatar URL");
       avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-        username
+        username,
       )}&background=4CAF50&color=fff&size=256`;
     }
 
@@ -3987,8 +4000,8 @@ export const updateMultipleLevels = async (req, res) => {
       LevelPercentage.findOneAndUpdate(
         { level: lvl.level },
         { $set: { A: lvl.A, B: lvl.B, C: lvl.C } },
-        { new: true, upsert: true } // upsert will create if doesn't exist
-      )
+        { new: true, upsert: true }, // upsert will create if doesn't exist
+      ),
     );
 
     const updatedLevels = await Promise.all(updatePromises);
@@ -4178,7 +4191,7 @@ export const blockUserWithdrawal = async (req, res) => {
       `Withdrawal blocked for user ${
         user.username || user.email || user.uuid
       } until ${date}`,
-      req.ip
+      req.ip,
     );
     io.emit("new-activity", {
       type: "User Withdrawal Blocked",
@@ -4416,7 +4429,7 @@ export const userTopupMainWallet = async (req, res) => {
           });
 
           console.log(
-            `✅ Joining bonus $${joiningBonusSlab.bonusAmount} credited to ${user._id}`
+            `✅ Joining bonus $${joiningBonusSlab.bonusAmount} credited to ${user._id}`,
           );
         } else {
           console.log(`ℹ️ No joining bonus applicable for deposit $${amt}`);
@@ -4438,31 +4451,31 @@ export const userTopupMainWallet = async (req, res) => {
             const referralBonus = rewardSlab.rewardAmount;
             parentUser.directReferalAmount = addAmount(
               parentUser.directReferalAmount,
-              referralBonus
+              referralBonus,
             );
             parentUser.totalEarnings = addAmount(
               parentUser.totalEarnings,
-              referralBonus
+              referralBonus,
             );
             parentUser.currentEarnings = addAmount(
               parentUser.currentEarnings,
-              referralBonus
+              referralBonus,
             );
             parentUser.totalEarningsInCycle = addAmount(
               parentUser.totalEarningsInCycle,
-              referralBonus
+              referralBonus,
             );
             parentUser.mainWallet = addAmount(
               parentUser.mainWallet,
-              referralBonus
+              referralBonus,
             );
             parentUser.mainRewards = addAmount(
               parentUser.mainRewards,
-              referralBonus
+              referralBonus,
             );
             parentUser.todayMainWalletRewards = addAmount(
               parentUser.todayMainWalletRewards,
-              referralBonus
+              referralBonus,
             );
 
             await parentUser.save();
@@ -4479,7 +4492,7 @@ export const userTopupMainWallet = async (req, res) => {
             });
 
             console.log(
-              `✅ Referral bonus $${referralBonus} credited to sponsor ${parentUser._id} from user ${user._id}`
+              `✅ Referral bonus $${referralBonus} credited to sponsor ${parentUser._id} from user ${user._id}`,
             );
           }
         }
@@ -4494,10 +4507,10 @@ export const userTopupMainWallet = async (req, res) => {
         if (level2Req) {
           const { teamA, teamB, teamC } = await calculateTeams(user._id);
           const validA = teamA.filter(
-            (m) => m.isVerified && m.mainWallet >= 30
+            (m) => m.isVerified && m.mainWallet >= 30,
           ).length;
           const validBC = [...teamB, ...teamC].filter(
-            (m) => m.isVerified && m.mainWallet >= 30
+            (m) => m.isVerified && m.mainWallet >= 30,
           ).length;
 
           if (
@@ -4534,7 +4547,7 @@ export const userTopupMainWallet = async (req, res) => {
 
           const roiEligibleRoom = Math.max(
             0,
-            maxLimit - user.roiMaxEligibleInvestment
+            maxLimit - user.roiMaxEligibleInvestment,
           );
           const toRoiEligible =
             toMainWallet > roiEligibleRoom ? roiEligibleRoom : toMainWallet;
@@ -4650,10 +4663,10 @@ export const userTopupAdditionalWallet = async (req, res) => {
       user.additionalAirdrop += Number(amt);
       user.additionalWalletReward += addAmount(
         user.additionalWalletReward,
-        amt
+        amt,
       );
       user.todayAdditionalWalletReward += addAmount(
-        user.todayAdditionalWalletReward
+        user.todayAdditionalWalletReward,
       );
       user.additionalWallet = addAmount(user.additionalWallet, amt);
 
@@ -4668,10 +4681,10 @@ export const userTopupAdditionalWallet = async (req, res) => {
       user.additionalReward += amt;
       user.additionalWalletReward += addAmount(
         user.additionalWalletReward,
-        amt
+        amt,
       );
       user.todayAdditionalWalletReward += addAmount(
-        user.todayAdditionalWalletReward
+        user.todayAdditionalWalletReward,
       );
       user.additionalWallet = addAmount(user.additionalWallet, amt);
 
@@ -4687,10 +4700,10 @@ export const userTopupAdditionalWallet = async (req, res) => {
       user.additionalSystemGift += amt;
       user.additionalWalletReward += addAmount(
         user.additionalWalletReward,
-        amt
+        amt,
       );
       user.todayAdditionalWalletReward += addAmount(
-        user.todayAdditionalWalletReward
+        user.todayAdditionalWalletReward,
       );
       user.additionalWallet = addAmount(user.additionalWallet, amt);
 
@@ -4929,7 +4942,7 @@ export const dashboardBannerActive = async (req, res) => {
     const updatedBanner = await DashboardBanner.findByIdAndUpdate(
       id,
       { isActive: true },
-      { new: true }
+      { new: true },
     );
 
     if (!updatedBanner) {
@@ -5028,7 +5041,7 @@ export const updateAiTradeCounter = async (req, res) => {
     const updatedCounter = await AiTradeCounter.findOneAndUpdate(
       {},
       { count: counter },
-      { new: true, upsert: true }
+      { new: true, upsert: true },
     );
 
     return res.status(200).json({
@@ -5086,7 +5099,7 @@ export const PlanvalueUpdateOfAgent = async (req, res) => {
         aiAgentFee,
         computingSkills,
       },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedPlan) {
@@ -5129,7 +5142,7 @@ export const adminLogout = async (req, res) => {
       adminId,
       "Logout",
       "Your Admin Panel was logged out",
-      req.ip
+      req.ip,
     );
 
     // 🔹 2. Emit event via Socket.io
@@ -5263,7 +5276,7 @@ export const getMonthlyStats = async (req, res) => {
     const fillStats = (stats, key) => {
       stats.forEach((item) => {
         const idx = months.findIndex(
-          (m) => m.month === item._id.month && m.year === item._id.year
+          (m) => m.month === item._id.month && m.year === item._id.year,
         );
         if (idx !== -1) months[idx][key] = parseFloat(item[key].toFixed(2));
       });
@@ -5288,7 +5301,7 @@ export const getMonthlyStats = async (req, res) => {
         totalWithdrawal: 0,
         totalPending: 0,
         totalCancelled: 0,
-      }
+      },
     );
 
     return res.status(200).json({
@@ -5672,7 +5685,7 @@ export const changeWithdrawalStatus = async (req, res) => {
     // 3. Update karo withdrawal ka status
     const result = await Withdrawal.updateMany(
       { _id: { $in: idsArray } },
-      { $set: { status: status } }
+      { $set: { status: status } },
     );
 
     if (result.modifiedCount === 0) {
@@ -5709,7 +5722,7 @@ export const setInactiveBlockDays = async (req, res) => {
     const config = await BlockConfigModel.findOneAndUpdate(
       {},
       { inactiveDays: days, updatedAt: new Date() },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
 
     return res.status(200).json({
@@ -5741,7 +5754,7 @@ export const setWithdrawalHourForWithdrawal = async (req, res) => {
     const config = await WithdrawalHourConfig.findOneAndUpdate(
       {},
       { withdrawalHour: hour, updatedAt: new Date() },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
 
     return res.status(200).json({
@@ -5845,7 +5858,7 @@ export const adminforgotPassword = async (req, res) => {
       admin._id,
       "Password Reset",
       "Admin Panel Password was reset",
-      req.ip
+      req.ip,
     );
     io.emit("new-activity", {
       message: `⚠️ Admin ${admin?.email || "Unknown"} reset password`,
@@ -5896,7 +5909,7 @@ export const adminPasswordLogin = async (req, res) => {
     const token = jwt.sign(
       { id: admin._id, role: "admin" },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1d" },
     );
 
     return res.status(200).json({
@@ -6264,7 +6277,7 @@ export const getAllUsersLevelCount = async (req, res) => {
     // ---- Fetch all users ----
     const allUsers = await UserModel.find(
       filter,
-      "username uuid profilePicture sponsorId isVerified levelUpgradeDate isLoginBlocked createdAt isActive level airdrop systemGift reward mainWallet additionalWallet additionalAirdrop"
+      "username uuid profilePicture sponsorId isVerified levelUpgradeDate isLoginBlocked createdAt isActive level airdrop systemGift reward mainWallet additionalWallet additionalAirdrop",
     )
       .populate("sponsorId", "uuid")
       .lean()
@@ -6286,7 +6299,7 @@ export const getAllUsersLevelCount = async (req, res) => {
     const totalAirdrop = allUsers.reduce(
       (sum, user) =>
         sum + Number(user.airdrop || 0) + Number(user.additionalAirdrop || 0),
-      0
+      0,
     );
 
     // ---- Add deposits per user ----
@@ -6294,12 +6307,12 @@ export const getAllUsersLevelCount = async (req, res) => {
       allUsers.map(async (user) => {
         const userDeposits = await Investment.find(
           { userId: user._id },
-          "investmentAmount createdAt"
+          "investmentAmount createdAt",
         ).sort({ createdAt: -1 });
 
         const totalDeposit = userDeposits.reduce(
           (sum, dep) => sum + Number(dep.investmentAmount || 0),
-          0
+          0,
         );
 
         return {
@@ -6325,7 +6338,7 @@ export const getAllUsersLevelCount = async (req, res) => {
             date: dep.createdAt,
           })),
         };
-      })
+      }),
     );
 
     return res.status(200).json({
@@ -6374,25 +6387,25 @@ export const getUserTeamById = async (req, res) => {
 
     const user = await UserModel.findById(userId)
       .select(
-        "uuid username phone email level isLoginBlocked isAdminLoginBlock profilePicture createdAt mainWallet additionalWallet"
+        "uuid username phone email level isLoginBlocked isAdminLoginBlock profilePicture createdAt mainWallet additionalWallet",
       )
       .populate("sponsorId", "username uuid");
 
     const { teamA, teamB, teamC, totalTeamBC } = await calculateTeams(
       userId,
       startDate,
-      endDate
+      endDate,
     );
 
     // sort only arrays
     const sortedTeamA = teamA.sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
     );
     const sortedTeamB = teamB.sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
     );
     const sortedTeamC = teamC.sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
     );
 
     return res.status(200).json({
@@ -6611,7 +6624,7 @@ export const editProfileById = async (req, res) => {
       action: "EDIT_PROFILE",
       details: changes
         .map(
-          (c) => `${c.field} changed from "${c.oldValue}" to "${c.newValue}"`
+          (c) => `${c.field} changed from "${c.oldValue}" to "${c.newValue}"`,
         )
         .join(", "),
       createdAt: new Date(),
@@ -6956,7 +6969,7 @@ export const getAllWithdrawalBlockUsers = async (req, res) => {
 
     const allUsers = await UserModel.find(
       { withdrawalBlockedUntil: { $gte: today } },
-      { uuid: 1, name: 1, username: 1, withdrawalBlockedUntil: 1, _id: 0 }
+      { uuid: 1, name: 1, username: 1, withdrawalBlockedUntil: 1, _id: 0 },
     );
 
     res.status(200).json({
@@ -7077,7 +7090,7 @@ export const editedUserByAdmin = async (req, res) => {
     }
 
     const allUsers = await UserModel.find({ isEdited: true }).select(
-      "username uuid email phone lastEditDate password"
+      "username uuid email phone lastEditDate password",
     );
 
     return res.status(200).json({
@@ -7218,14 +7231,14 @@ export const blockUsers = async (req, res) => {
 
     // ✅ Filter unblocked users
     const toBeBlockedIds = validIds.filter(
-      (id) => !alreadyBlockedIds.includes(id)
+      (id) => !alreadyBlockedIds.includes(id),
     );
 
     // 🔄 Block them
     if (toBeBlockedIds.length > 0) {
       await UserModel.updateMany(
         { _id: { $in: toBeBlockedIds } },
-        { $set: { isAdminLoginBlock: true } }
+        { $set: { isAdminLoginBlock: true } },
       );
     }
 
@@ -7237,7 +7250,7 @@ export const blockUsers = async (req, res) => {
           adminId,
           "User Status Update",
           `User ${user.username || user.email || user._id} has been blocked`,
-          req.ip
+          req.ip,
         );
       }
     }
@@ -7290,7 +7303,7 @@ export const UnblockblockUsers = async (req, res) => {
     const result = await UserModel.updateMany(
       { _id: { $in: validIds } },
       // { $set: { isLoginBlocked: false } }
-      { $set: { isAdminLoginBlock: false } }
+      { $set: { isAdminLoginBlock: false } },
     );
 
     return res.status(200).json({
@@ -7462,7 +7475,7 @@ export const changeReferralTradeCredit = async (req, res) => {
     const updatedData = await ReferralTradeCredit.findOneAndUpdate(
       {}, // first document (empty condition means any one)
       { referralCredit, tradeCredit },
-      { new: true, upsert: true } // new: updated document return kare, upsert: create if not exists
+      { new: true, upsert: true }, // new: updated document return kare, upsert: create if not exists
     );
 
     return res.status(200).json({
@@ -7537,7 +7550,7 @@ export const getReferralAndTradeCredit = async (req, res) => {
   } catch (error) {
     console.error(
       "❌ Error fetching referral and trade credit:",
-      error.message
+      error.message,
     );
     return res.status(500).json({
       success: false,
@@ -7597,7 +7610,7 @@ export const saveAdminInfo = async (req, res) => {
         adminId,
         "Social Media Update",
         "Initial admin info created",
-        req.ip
+        req.ip,
       );
 
       // 👇 Emit also for creation
@@ -7905,7 +7918,7 @@ export const setWalletAddress = async (req, res) => {
         admin._id,
         "Deposit Address Update",
         "Initial deposit addresses set",
-        req.ip
+        req.ip,
       );
       io.emit("new-activity", {
         type: "deposit",
@@ -7932,7 +7945,7 @@ export const setWalletAddress = async (req, res) => {
             admin._id,
             "Deposit Address Update",
             msg,
-            req.ip
+            req.ip,
           );
         }
       }
@@ -8060,12 +8073,12 @@ export const getDashboardBanner = async (req, res) => {
       ...currentMatched.sort(
         (a, b) =>
           new Date(b.scheduledTime) - new Date(a.scheduledTime) ||
-          new Date(b.createdAt) - new Date(a.createdAt)
+          new Date(b.createdAt) - new Date(a.createdAt),
       ),
       ...others.sort(
         (a, b) =>
           new Date(b.scheduledTime) - new Date(a.scheduledTime) ||
-          new Date(b.createdAt) - new Date(a.createdAt)
+          new Date(b.createdAt) - new Date(a.createdAt),
       ),
     ];
 
@@ -8544,7 +8557,7 @@ export const allHistory = async (req, res) => {
 
     const totalTopup = topuphistory
       .filter(
-        (t) => t.walletType === "additionalWallet" && t.type === "deposit"
+        (t) => t.walletType === "additionalWallet" && t.type === "deposit",
       )
       .reduce((sum, t) => sum + (t.amount || 0), 0);
 
@@ -8563,14 +8576,14 @@ export const allHistory = async (req, res) => {
 
     const totalTransfer = fundTransfer.reduce(
       (sum, f) => sum + (f.amount || 0),
-      0
+      0,
     );
 
     const totalSystemFund = reward.reduce((sum, r) => sum + (r.amount || 0), 0);
 
     const totalReferralBonus = referralBonus.reduce(
       (sum, r) => sum + (r.amount || 0),
-      0
+      0,
     );
 
     const joiningReward = userReward
@@ -8595,7 +8608,7 @@ export const allHistory = async (req, res) => {
         deduct.length +
         swapHistory.length +
         topuphistory.length +
-        "allHistory"
+        "allHistory",
     );
 
     // -------- Final Response --------
@@ -8782,12 +8795,12 @@ export const getNotificationPopup = async (req, res) => {
       ...currentMatched.sort(
         (a, b) =>
           new Date(b.scheduledTime) - new Date(a.scheduledTime) ||
-          new Date(b.createdAt) - new Date(a.createdAt)
+          new Date(b.createdAt) - new Date(a.createdAt),
       ),
       ...others.sort(
         (a, b) =>
           new Date(b.scheduledTime) - new Date(a.scheduledTime) ||
-          new Date(b.createdAt) - new Date(a.createdAt)
+          new Date(b.createdAt) - new Date(a.createdAt),
       ),
     ];
 
@@ -8934,7 +8947,7 @@ export const uploadPdfs = async (req, res) => {
       console.log("📄 learnMore file found");
       pdfDoc.learnMore = await replacePdf(
         pdfDoc.learnMore,
-        req.files.learnMore[0]
+        req.files.learnMore[0],
       );
     }
 
@@ -8942,7 +8955,7 @@ export const uploadPdfs = async (req, res) => {
       console.log("📄 presentation file found");
       pdfDoc.presentation = await replacePdf(
         pdfDoc.presentation,
-        req.files.presentation[0]
+        req.files.presentation[0],
       );
     }
 
@@ -8950,7 +8963,7 @@ export const uploadPdfs = async (req, res) => {
       console.log("📄 whitepaper file found");
       pdfDoc.whitepaper = await replacePdf(
         pdfDoc.whitepaper,
-        req.files.whitepaper[0]
+        req.files.whitepaper[0],
       );
     }
 
@@ -8958,7 +8971,7 @@ export const uploadPdfs = async (req, res) => {
       console.log("📄 lightpaper file found");
       pdfDoc.lightpaper = await replacePdf(
         pdfDoc.lightpaper,
-        req.files.lightpaper[0]
+        req.files.lightpaper[0],
       );
     }
 
@@ -9655,7 +9668,7 @@ export const getTodayRequiredAmount = async (req, res) => {
         "Withdrawal Alert - Today’s Required Amount",
         `<h3>Alert 🚨</h3>
          <p>Aaj ke liye required withdrawal amount (Hour: ${hour}:00) hai: <b>$${total}</b></p>
-         <p>Please ensure you have enough balance in wallet.</p>`
+         <p>Please ensure you have enough balance in wallet.</p>`,
       );
     }
     return res.status(200).json({
@@ -9816,7 +9829,7 @@ export const getAllFilterUsers = async (req, res) => {
     const { teamA, teamB, teamC } = await calculateTeams(
       userId,
       startDate,
-      endDate
+      endDate,
     );
 
     let allUsers = [];
@@ -9844,7 +9857,7 @@ export const getAllFilterUsers = async (req, res) => {
     // ✅ Duplicate users hata do
     allUsers = allUsers.filter(
       (v, i, a) =>
-        a.findIndex((t) => t._id.toString() === v._id.toString()) === i
+        a.findIndex((t) => t._id.toString() === v._id.toString()) === i,
     );
 
     // ✅ Status calculate karo aur filter lagao
@@ -10117,7 +10130,7 @@ export const deleteSupportById = async (req, res) => {
       console.log(
         "🗑 Starting Cloudinary delete for",
         ticket.file.length,
-        "files"
+        "files",
       );
 
       const deletePromises = ticket.file.map(async (img) => {
@@ -10189,7 +10202,7 @@ export const addLevelIncomeInmainWalletAndPendingWallet = async (req, res) => {
   } catch (err) {
     console.error(
       "❌ Error in addLevelIncomeInmainWalletAndPendingWallet:",
-      err
+      err,
     );
     return res.status(500).json({
       success: false,
