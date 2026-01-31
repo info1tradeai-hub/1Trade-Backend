@@ -235,36 +235,44 @@ export const processWithdrawal = async (req, res) => {
     // ---------------------------
     // LEVEL >= 2 OR meetsLevel2Partial RULES
     // ---------------------------
+    // ---------------------------
+    // SINGLE & MONTHLY WITHDRAWAL LIMIT CHECK
+    // ---------------------------
+
+    // 1️⃣ Single withdrawal limit
     if (numericAmount > withdrawalRule.singleWithdrawalLimit) {
       return res.status(400).json({
         success: false,
         message: `Maximum single withdrawal for your level is $${withdrawalRule.singleWithdrawalLimit}`,
       });
-      // }
+    }
 
-      const now = new Date();
-      const firstDayOfMonth = moment()
-        .tz("Asia/Kolkata")
-        .startOf("month")
-        .toDate();
+    // 2️⃣ Monthly withdrawal count
+    const firstDayOfMonth = moment()
+      .tz("Asia/Kolkata")
+      .startOf("month")
+      .toDate();
 
-      const lastDayOfMonth = moment()
-        .tz("Asia/Kolkata")
-        .endOf("month")
-        .toDate();
+    const lastDayOfMonth = moment().tz("Asia/Kolkata").endOf("month").toDate();
 
-      const monthlyWithdrawals = await Withdrawal.find({
-        userId,
-        createdAt: { $gte: firstDayOfMonth, $lte: lastDayOfMonth },
-        status: "success",
+    const monthlyWithdrawalsCount = await Withdrawal.countDocuments({
+      userId,
+      status: "success",
+      createdAt: {
+        $gte: firstDayOfMonth,
+        $lte: lastDayOfMonth,
+      },
+    });
+
+    // perMonthWithdrawalCount null ho to unlimited (level 0 jaisa)
+    if (
+      withdrawalRule.perMonthWithdrawalCount !== null &&
+      monthlyWithdrawalsCount >= withdrawalRule.perMonthWithdrawalCount
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: `Monthly withdrawal limit reached. You can withdraw only ${withdrawalRule.perMonthWithdrawalCount} times per month.`,
       });
-
-      if (monthlyWithdrawals.length >= withdrawalRule.perMonthWithdrawalCount) {
-        return res.status(400).json({
-          success: false,
-          message: "Monthly withdrawal limit reached.",
-        });
-      }
     }
 
     // ---------------------------
@@ -352,7 +360,7 @@ export const processWithdrawal = async (req, res) => {
       success: true,
       message: `Withdrawal request submitted successfully. Net amount: $${netAmount.toFixed(
         2,
-      )} will be processed after ${cutoffHours} hours.`,
+      )} will be successful between 48 to 90 hours.`,
     });
   } catch (error) {
     console.error("Withdrawal Error:", error.message);
