@@ -6584,7 +6584,8 @@ export const editProfileById = async (req, res) => {
     if (password && password.trim() !== "") {
       const salt = await bcrypt.genSalt(10);
       const hashed = await bcrypt.hash(password, salt);
-
+      user.failedLoginAttempts = 0;
+      user.isBlocked = false;
       changes.push({
         field: "password",
         oldValue: "********",
