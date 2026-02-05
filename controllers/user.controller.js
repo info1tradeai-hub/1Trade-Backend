@@ -2106,7 +2106,7 @@ export const verifyOtpForPassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     user.password = hashedPassword;
     user.isBlocked = false;
-
+    user.failedLoginAttempts = 0;
     user.otp = null;
     user.otpExpire = null;
     await user.save();
