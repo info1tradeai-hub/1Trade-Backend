@@ -74,8 +74,10 @@ cron.schedule(
   },
 );
 
-cron.schedule("0 * * * *", async () => {
+cron.schedule("*/10 * * * *", async () => {
   if (isResettingBonus) return;
+
+  console.log("🔁 Running resetBonusAfter2Days...");
 
   isResettingBonus = true;
   try {

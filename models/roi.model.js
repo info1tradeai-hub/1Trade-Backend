@@ -58,9 +58,17 @@ const aroiSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
-aroiSchema.index({ userId: 1, isClaimed: 1 });
+// aroiSchema.index({ userId: 1, isClaimed: 1 });
+aroiSchema.index(
+  { userId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { isClaimed: false },
+  },
+);
+
 aroiSchema.index({ creditedOn: -1 });
 aroiSchema.index({ status: 1 });
 const Roi = mongoose.model("Roi", aroiSchema);

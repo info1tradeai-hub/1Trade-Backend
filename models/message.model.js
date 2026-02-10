@@ -16,7 +16,7 @@ const messageSchema = new mongoose.Schema(
       type: String,
     },
     message: {
-      type: String,
+      type: mongoose.Schema.Types.Mixed,
     },
     type: {
       type: String,
@@ -24,7 +24,7 @@ const messageSchema = new mongoose.Schema(
       default: "text",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Message = mongoose.model("Message", messageSchema);

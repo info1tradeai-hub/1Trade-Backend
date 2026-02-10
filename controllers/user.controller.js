@@ -158,12 +158,13 @@ export const userRegisterWithEmail = async (req, res) => {
       username,
     )}&background=4CAF50&color=fff&size=256`;
 
-    // ✅ Create new user
+    const bonusExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000);
     const newUser = await UserModel.create({
       email: emails,
       password: hashedPassword,
       BonusCredit: bonus,
       bonusAddedAt: Date.now(),
+      bonusExpiresAt: bonusExpiry,
       username: username,
       phone,
       countryName: name,
@@ -171,6 +172,7 @@ export const userRegisterWithEmail = async (req, res) => {
       uuid: (await generate9DigitUUID()).toUpperCase(),
       referralCode,
       otpVerified: true,
+      bonusResetAt: null,
       role: "user",
       profilePicture: avatarUrl,
       ...(userCount > 0 && {

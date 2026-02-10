@@ -1,35 +1,79 @@
+// // import UserModel from "../models/user.model.js";
+// // import Investment from "../models/investment.model.js";
+// // import { v4 as uuidv4 } from "uuid";
+
+// // export const resetBonusAfter2Days = async () => {
+// //   try {
+// //     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+
+// //     const usersToReset = await UserModel.find({
+// //       bonusAddedAt: { $lte: twoDaysAgo },
+// //       BonusCredit: { $gt: 0 },
+// //     });
+
+// //     if (!usersToReset.length) return;
+
+// //     await UserModel.updateMany(
+// //       { _id: { $in: usersToReset.map((u) => u._id) } },
+// //       { $set: { BonusCredit: 0 } }
+// //     );
+
+// //     const investmentEntries = usersToReset.map((user) => ({
+// //       userId: user._id,
+// //       walletAddress: "default-bonus-wallet",
+// //       type: "Trial Amount",
+// //       investmentAmount: -200,
+// //       txResponse: `BONUS-RESET-${uuidv4()}`,
+// //     }));
+
+// //     await Investment.insertMany(investmentEntries);
+
+// //     console.log(
+// //       `✅ Bonus reset (-200) and history added for ${usersToReset.length} users.`
+// //     );
+// //   } catch (error) {
+// //     console.error("❌ Error resetting bonus:", error.message);
+// //   }
+// // };
+
 // import UserModel from "../models/user.model.js";
 // import Investment from "../models/investment.model.js";
 // import { v4 as uuidv4 } from "uuid";
 
 // export const resetBonusAfter2Days = async () => {
 //   try {
-//     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+//     const now = new Date();
 
 //     const usersToReset = await UserModel.find({
-//       bonusAddedAt: { $lte: twoDaysAgo },
 //       BonusCredit: { $gt: 0 },
 //     });
 
 //     if (!usersToReset.length) return;
 
+//     const usersForReset = usersToReset.filter((user) => {
+//       const bonusTime = new Date(user.bonusAddedAt);
+//       const resetTime = new Date(bonusTime.getTime() + 48 * 60 * 60 * 1000);
+//       return now >= resetTime;
+//     });
+
+//     if (!usersForReset.length) return;
+
 //     await UserModel.updateMany(
-//       { _id: { $in: usersToReset.map((u) => u._id) } },
-//       { $set: { BonusCredit: 0 } }
+//       { _id: { $in: usersForReset.map((u) => u._id) } },
+//       { $set: { BonusCredit: 0 } },
 //     );
 
-//     const investmentEntries = usersToReset.map((user) => ({
+//     const investmentEntries = usersForReset.map((user) => ({
 //       userId: user._id,
 //       walletAddress: "default-bonus-wallet",
 //       type: "Trial Amount",
 //       investmentAmount: -200,
 //       txResponse: `BONUS-RESET-${uuidv4()}`,
+//       investmentDate: new Date(),
 //     }));
-
 //     await Investment.insertMany(investmentEntries);
-
 //     console.log(
-//       `✅ Bonus reset (-200) and history added for ${usersToReset.length} users.`
+//       `✅ Bonus reset (-200) and history added for ${usersForReset.length} users.`,
 //     );
 //   } catch (error) {
 //     console.error("❌ Error resetting bonus:", error.message);
@@ -43,41 +87,47 @@ import { v4 as uuidv4 } from "uuid";
 export const resetBonusAfter2Days = async () => {
   try {
     const now = new Date();
-
-    const usersToReset = await UserModel.find({
+    const users = await UserModel.find({
       BonusCredit: { $gt: 0 },
+      bonusResetAt: null,
     });
+    if (!users.length) return;
+    const usersForReset = users.filter((user) => {
+      if (!user.bonusAddedAt) return false;
 
-    if (!usersToReset.length) return;
-
-    const usersForReset = usersToReset.filter((user) => {
-      const bonusTime = new Date(user.bonusAddedAt);
-      const resetTime = new Date(bonusTime.getTime() + 48 * 60 * 60 * 1000);
-      return now >= resetTime; 
+      const bonusAddedTime = new Date(user.bonusAddedAt);
+      const resetTime = new Date(
+        bonusAddedTime.getTime() + 48 * 60 * 60 * 1000,
+      );
+      return now >= resetTime;
     });
-
     if (!usersForReset.length) return;
-
+    // 3️⃣ Bonus reset + lock laga do
     await UserModel.updateMany(
       { _id: { $in: usersForReset.map((u) => u._id) } },
-      { $set: { BonusCredit: 0 } }
+      {
+        $set: {
+          BonusCredit: 0,
+          bonusResetAt: now,
+        },
+      },
     );
 
     const investmentEntries = usersForReset.map((user) => ({
       userId: user._id,
       walletAddress: "default-bonus-wallet",
-      type: "Trial Amount",
+      type: "Trial Amount Reset",
       investmentAmount: -200,
       txResponse: `BONUS-RESET-${uuidv4()}`,
-      investmentDate: new Date(),
+      investmentDate: now,
     }));
 
     await Investment.insertMany(investmentEntries);
 
     console.log(
-      `✅ Bonus reset (-200) and history added for ${usersForReset.length} users.`
+      `✅ Bonus reset successfully for ${usersForReset.length} users`,
     );
   } catch (error) {
-    console.error("❌ Error resetting bonus:", error.message);
+    console.error("❌ Error resetting bonus:", error);
   }
 };

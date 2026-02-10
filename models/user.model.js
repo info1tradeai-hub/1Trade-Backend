@@ -130,6 +130,13 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    bonusExpiresAt: {
+      type: Date,
+    },
+    bonusResetAt: {
+      type: Date,
+      default: null,
+    },
     isVerified: { type: Boolean, default: false },
     role: { type: String, enum: ["user", "admin"] },
     status: { type: Boolean, default: false },
@@ -557,7 +564,7 @@ const userSchema = new mongoose.Schema(
     remainingTradesAfterCap: { type: Number, default: 0 },
   },
 
-  { timestamps: true }
+  { timestamps: true },
 );
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ uuid: 1 }, { unique: true });

@@ -31,13 +31,15 @@ const allowedOrigins = [
   "http://192.168.1.15:6083",
   "http://192.168.1.16:6083",
   "http://192.168.1.9:6083",
+  "http://192.168.29.128:6083",
+  "http://localhost:6083",
 ];
 
 app.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
-  })
+  }),
 );
 
 app.use("/api/users", UserRouter);
@@ -55,11 +57,11 @@ io.on("connection", (socket) => {
   socket.on("join", (userId) => socket.join(userId));
 
   socket.on("typing", ({ senderId, receiverId }) =>
-    io.to(receiverId).emit("typing", { senderId })
+    io.to(receiverId).emit("typing", { senderId }),
   );
 
   socket.on("stopTyping", ({ senderId, receiverId }) =>
-    io.to(receiverId).emit("stopTyping", { senderId })
+    io.to(receiverId).emit("stopTyping", { senderId }),
   );
 
   socket.on("offer", (payload) => io.to(payload.to).emit("offer", payload));
@@ -67,7 +69,7 @@ io.on("connection", (socket) => {
   socket.on("answer", (payload) => io.to(payload.to).emit("answer", payload));
 
   socket.on("candidate", (payload) =>
-    io.to(payload.to).emit("candidate", payload)
+    io.to(payload.to).emit("candidate", payload),
   );
   socket.on("sendMessage", (data) => {
     setImmediate(async () => {
