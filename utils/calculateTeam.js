@@ -7,7 +7,7 @@ const MIN_USER_FIELDS =
 export const calculateTeams = async (
   userId,
   startDate = null,
-  endDate = null
+  endDate = null,
 ) => {
   try {
     const user = await UserModel.findById(userId)
@@ -67,7 +67,7 @@ const isValidUser = (user) => {
   return (
     user.isVerified === true &&
     user.isLoginBlocked === false &&
-    (user.level > 0 || (user.level === 0 && user.mainWallet >= 30))
+    (user.level > 0 || (user.level === 0 && user.mainWallet >= 50))
   );
 };
 const sortByLatest = (arr = []) =>
@@ -82,7 +82,7 @@ const split = (team, startDate, endDate) => {
   const valid =
     startDate && endDate
       ? team.filter(
-          (u) => isValidUser(u) && isInRange(u.activeDate, startDate, endDate)
+          (u) => isValidUser(u) && isInRange(u.activeDate, startDate, endDate),
         )
       : team.filter((u) => isValidUser(u));
 
@@ -100,7 +100,7 @@ const getFullTreeUpToLevel3 = async (userId) => {
   /* ================= TEAM A ================= */
   const teamA = await UserModel.find(
     { _id: { $in: user.referedUsers } },
-    MIN_USER_FIELDS
+    MIN_USER_FIELDS,
   )
     .populate({
       path: "referedUsers",
@@ -111,12 +111,12 @@ const getFullTreeUpToLevel3 = async (userId) => {
 
   /* ================= TEAM B ================= */
   const teamBIds = teamA.flatMap(
-    (u) => u.referedUsers?.map((r) => r._id) || []
+    (u) => u.referedUsers?.map((r) => r._id) || [],
   );
 
   const teamB = await UserModel.find(
     { _id: { $in: teamBIds } },
-    MIN_USER_FIELDS
+    MIN_USER_FIELDS,
   )
     .populate({
       path: "referedUsers",
@@ -127,12 +127,12 @@ const getFullTreeUpToLevel3 = async (userId) => {
 
   /* ================= TEAM C ================= */
   const teamCIds = teamB.flatMap(
-    (u) => u.referedUsers?.map((r) => r._id) || []
+    (u) => u.referedUsers?.map((r) => r._id) || [],
   );
 
   const teamC = await UserModel.find(
     { _id: { $in: teamCIds } },
-    MIN_USER_FIELDS
+    MIN_USER_FIELDS,
   )
     .populate({
       path: "referedUsers",
@@ -157,7 +157,7 @@ const isInRange = (dateValue, startDate, endDate) => {
 export const calculateTeamsForDashboardUsers = async (
   userId,
   startDate,
-  endDate
+  endDate,
 ) => {
   const { teamA, teamB, teamC } = await getFullTreeUpToLevel3(userId);
 
