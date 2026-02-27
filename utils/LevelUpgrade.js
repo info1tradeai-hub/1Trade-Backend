@@ -49,7 +49,7 @@ export const runLevelUpgrades = async () => {
 
       if (req.timelineDays > 0 && user.lastUpgradeAt) {
         const windowEnd = new Date(
-          user.lastUpgradeAt.getTime() + req.timelineDays * 24 * 60 * 60 * 1000
+          user.lastUpgradeAt.getTime() + req.timelineDays * 24 * 60 * 60 * 1000,
         );
         if (now > windowEnd) break;
       }
@@ -57,11 +57,11 @@ export const runLevelUpgrades = async () => {
       const { teamA, teamB, teamC } = await calculateTeams(user._id);
 
       const validTeamA = teamA.filter(
-        (member) => member.isVerified && member.mainWallet >= 30
+        (member) => member.isVerified && member.mainWallet >= 50,
       ).length;
 
       const validTeamBC = [...teamB, ...teamC].filter(
-        (member) => member.isVerified && member.mainWallet >= 30
+        (member) => member.isVerified && member.mainWallet >= 50,
       ).length;
 
       if (validTeamA < req.activeA || validTeamBC < req.activeBC) break;
@@ -85,7 +85,7 @@ export const runLevelUpgrades = async () => {
           const updatedUser = await UserModel.findOneAndUpdate(
             { _id: user._id, isLevelOneMemberValidAiCredit: { $ne: true } },
             { $set: { isLevelOneMemberValidAiCredit: true } },
-            { new: true }
+            { new: true },
           );
 
           if (user.sponsorId && updatedUser) {
@@ -209,11 +209,11 @@ export const runLevelDowngrades = async () => {
       const { teamA, teamB, teamC } = await calculateTeams(user._id);
 
       const validTeamA = teamA.filter(
-        (m) => m.isVerified && m.mainWallet >= 30
+        (m) => m.isVerified && m.mainWallet >= 50,
       ).length;
       const validTeamBC =
-        teamB.filter((m) => m.isVerified && m.mainWallet >= 30).length +
-        teamC.filter((m) => m.isVerified && m.mainWallet >= 30).length;
+        teamB.filter((m) => m.isVerified && m.mainWallet >= 50).length +
+        teamC.filter((m) => m.isVerified && m.mainWallet >= 50).length;
 
       const teamAFail = validTeamA < req.activeA;
       const teamBCFail = validTeamBC < req.activeBC;
@@ -226,12 +226,12 @@ export const runLevelDowngrades = async () => {
 
     if (finalLevel !== currentLevel) {
       console.log(
-        `❌ Downgrading User ${user._id} from Level ${currentLevel} → ${finalLevel}`
+        `❌ Downgrading User ${user._id} from Level ${currentLevel} → ${finalLevel}`,
       );
       user.level = finalLevel;
       user.levelDwongradedAt = now;
-      user.tradeLocked = true; // ✅ Trade freeze
-      user.lastDowngradedFrom = currentLevel; // ✅ Reference store
+      user.tradeLocked = true;
+      user.lastDowngradedFrom = currentLevel;
       user.tradeLockUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
       await user.save();

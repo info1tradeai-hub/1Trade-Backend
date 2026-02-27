@@ -57,14 +57,14 @@ const isValidUser = (member) => {
   return (
     member.isVerified === true &&
     member.isLoginBlocked === false &&
-    (member.level > 0 || (member.level === 0 && member.mainWallet >= 30))
+    (member.level > 0 || (member.level === 0 && member.mainWallet >= 50))
   );
 };
 
 export const calculateTeamsforDashboard = async (
   userId,
   startDate = null,
-  endDate = null
+  endDate = null,
 ) => {
   const user = await UserModel.findById(userId).select("referedUsers").lean();
 

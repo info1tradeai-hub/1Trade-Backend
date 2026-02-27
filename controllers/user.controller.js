@@ -2371,6 +2371,23 @@ export const transferAmountToAnotherUser = async (req, res) => {
         .json({ message: "Invalid or expired email OTP", success: false });
     }
 
+    const startOfMonth = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1,
+    );
+
+    const monthlyTransferCount = await FundTransfer.countDocuments({
+      from: sender._id,
+      createdAt: { $gte: startOfMonth },
+    });
+
+    if (monthlyTransferCount >= 1) {
+      return res.status(400).json({
+        message: "You can only transfer once per month.",
+        success: false,
+      });
+    }
     // -------- Receiver Validation --------
     const receiver = await UserModel.findOne({ uuid: username });
     if (!receiver) {
@@ -2391,6 +2408,19 @@ export const transferAmountToAnotherUser = async (req, res) => {
     const transferFee = Number(fee);
     const sendableAmount = transferAmount - transferFee;
 
+    if (transferAmount !== 50) {
+      return res.status(400).json({
+        message: "Transfer amount must be exactly $50.",
+        success: false,
+      });
+    }
+
+    if (sendableAmount <= 0) {
+      return res.status(400).json({
+        message: "Transfer amount must be greater than the fee",
+        success: false,
+      });
+    }
     if (sendableAmount <= 0) {
       return res.status(400).json({
         message: "Transfer amount must be greater than the fee",

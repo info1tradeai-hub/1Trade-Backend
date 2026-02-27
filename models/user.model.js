@@ -133,6 +133,14 @@ const userSchema = new mongoose.Schema(
     bonusExpiresAt: {
       type: Date,
     },
+    activeThreshold: {
+      type: Number,
+      default: 50,
+    },
+    hitNewThresholdOnce: {
+      type: Boolean,
+      default: false,
+    },
     bonusResetAt: {
       type: Date,
       default: null,
