@@ -246,8 +246,8 @@ export const userLogin = async (req, res) => {
       });
     }
 
-    return res.status(200).json({
-      success: false,
+    return res.status(400).json({
+      success: true,
       message: `We are currently undergoing a system upgrade to improve our services.The platform is temporarily under maintenance. We will notify you as soon as it is back online.`,
     });
     // 🔥 normalize input
