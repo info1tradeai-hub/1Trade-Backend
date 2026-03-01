@@ -246,6 +246,9 @@ export const userLogin = async (req, res) => {
       });
     }
 
+    return res.status(200).json({
+      message: `We are currently undergoing a system upgrade to improve our services.The platform is temporarily under maintenance. We will notify you as soon as it is back online.`,
+    });
     // 🔥 normalize input
     const loginValue = email.trim().toLowerCase();
 
